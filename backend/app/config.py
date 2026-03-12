@@ -3,11 +3,16 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 from typing import Optional
 
-# Look for .env in backend/ first, then project root (file-tracer/)
+# Look for .env files in project root (file-tracer/)
 _backend_dir = Path(__file__).resolve().parent.parent
-_env_file = _backend_dir / ".env"
-if not _env_file.exists():
-    _env_file = _backend_dir.parent / ".env"
+_project_root = _backend_dir.parent
+
+# Environment-specific .env file mapping
+ENV_FILES = {
+    "local": _project_root / ".env.local",
+    "dev": _project_root / ".env.dev",
+    "prod": _project_root / ".env.prod",
+}
 
 
 class Settings(BaseSettings):
@@ -31,7 +36,27 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-northeast-2"
     AWS_S3_BUCKET: str = "dev-knowledge-hub"
 
-    model_config = {"env_file": str(_env_file), "extra": "ignore"}
+    model_config = {"env_file": "", "extra": "ignore"}
 
 
-settings = Settings()
+# Load settings for each available environment
+env_settings: dict[str, Settings] = {}
+for _env_name, _env_file in ENV_FILES.items():
+    if _env_file.exists():
+        env_settings[_env_name] = Settings(_env_file=str(_env_file))
+
+# Default settings (backward compatibility)
+settings = env_settings.get("dev", Settings())
+
+
+def get_settings(env: str = "dev") -> Settings:
+    """Get settings for the specified environment."""
+    if env not in env_settings:
+        available = list(env_settings.keys())
+        raise ValueError(f"Environment '{env}' not available. Available: {available}")
+    return env_settings[env]
+
+
+def get_available_envs() -> list[str]:
+    """Return list of available environments."""
+    return list(env_settings.keys())

@@ -1,41 +1,41 @@
 from urllib.parse import urlparse
 from opensearchpy import OpenSearch, RequestsHttpConnection
-from app.config import settings
+from app.config import Settings
 
 
-def _build_client() -> OpenSearch:
+def _build_client(cfg: Settings) -> OpenSearch:
     """Build an OpenSearch client. Uses AWS SigV4 for HTTPS endpoints, plain auth for local."""
-    parsed = urlparse(settings.OPENSEARCH_URL)
+    parsed = urlparse(cfg.OPENSEARCH_URL)
     host = parsed.hostname or "localhost"
     port = parsed.port or (443 if parsed.scheme == "https" else 9200)
     use_ssl = parsed.scheme == "https"
 
-    if (use_ssl or settings.OPENSEARCH_USE_AWS_AUTH) and settings.AWS_ACCESS_KEY_ID:
+    if (use_ssl or cfg.OPENSEARCH_USE_AWS_AUTH) and cfg.AWS_ACCESS_KEY_ID:
         # AWS OpenSearch Serverless
         from requests_aws4auth import AWS4Auth
         import boto3
 
         credentials = boto3.Session(
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_REGION,
+            aws_access_key_id=cfg.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=cfg.AWS_SECRET_ACCESS_KEY,
+            region_name=cfg.AWS_REGION,
         ).get_credentials()
 
         awsauth = AWS4Auth(
             credentials.access_key,
             credentials.secret_key,
-            settings.AWS_REGION,
-            settings.OPENSEARCH_AWS_SERVICE,
+            cfg.AWS_REGION,
+            cfg.OPENSEARCH_AWS_SERVICE,
             session_token=credentials.token,
         )
 
         # SSH tunnel: use SSL (remote expects HTTPS) but skip cert verify (cert is for real hostname, not localhost)
-        force_ssl = use_ssl or settings.OPENSEARCH_USE_AWS_AUTH
+        force_ssl = use_ssl or cfg.OPENSEARCH_USE_AWS_AUTH
         return OpenSearch(
             hosts=[{"host": host, "port": port}],
             http_auth=awsauth,
             use_ssl=force_ssl,
-            verify_certs=False if settings.OPENSEARCH_USE_AWS_AUTH else use_ssl,
+            verify_certs=False if cfg.OPENSEARCH_USE_AWS_AUTH else use_ssl,
             connection_class=RequestsHttpConnection,
         )
     else:
@@ -48,10 +48,10 @@ def _build_client() -> OpenSearch:
         )
 
 
-async def get_opensearch_chunks(file_unique_id: str) -> dict:
+async def get_opensearch_chunks(file_unique_id: str, cfg: Settings) -> dict:
     """Query OpenSearch for all chunks matching file_unique_id (no ACL filter)."""
     try:
-        client = _build_client()
+        client = _build_client(cfg)
 
         query = {
             "query": {"term": {"file_unique_id": file_unique_id}},
@@ -63,7 +63,7 @@ async def get_opensearch_chunks(file_unique_id: str) -> dict:
             ],
         }
 
-        response = client.search(index=settings.FILE_INDEX_NAME, body=query)
+        response = client.search(index=cfg.FILE_INDEX_NAME, body=query)
         hits = response.get("hits", {}).get("hits", [])
 
         chunks = [hit["_source"] for hit in hits]

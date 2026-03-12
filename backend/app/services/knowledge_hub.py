@@ -1,15 +1,15 @@
 import aiomysql
-from app.config import settings
+from app.config import Settings
 
 
-async def get_agent_file(file_unique_id: str) -> dict:
+async def get_agent_file(file_unique_id: str, cfg: Settings) -> dict:
     """Query knowledge-hub MySQL for agent_files by id (= file_unique_id)."""
     conn = await aiomysql.connect(
-        host=settings.MYSQL_HOST,
-        port=settings.MYSQL_PORT,
-        user=settings.MYSQL_USER,
-        password=settings.MYSQL_PASSWORD,
-        db=settings.KH_MYSQL_DATABASE,
+        host=cfg.MYSQL_HOST,
+        port=cfg.MYSQL_PORT,
+        user=cfg.MYSQL_USER,
+        password=cfg.MYSQL_PASSWORD,
+        db=cfg.KH_MYSQL_DATABASE,
         charset="utf8mb4",
     )
     try:

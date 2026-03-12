@@ -74,10 +74,19 @@ export interface TraceResponse {
   };
 }
 
-export async function fetchTrace(fileUniqueId: string): Promise<TraceResponse> {
-  const res = await fetch(`/api/trace/${encodeURIComponent(fileUniqueId)}`);
+export async function fetchTrace(fileUniqueId: string, env: string = "dev"): Promise<TraceResponse> {
+  const res = await fetch(`/api/trace/${encodeURIComponent(fileUniqueId)}?env=${env}`);
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
   return res.json();
+}
+
+export async function fetchAvailableEnvs(): Promise<string[]> {
+  const res = await fetch("/api/envs");
+  if (!res.ok) {
+    return ["dev"];
+  }
+  const data = await res.json();
+  return data.envs;
 }

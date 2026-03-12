@@ -1,15 +1,15 @@
 import aiomysql
-from app.config import settings
+from app.config import Settings
 
 
-async def get_ingress_file(file_unique_id: str) -> dict:
+async def get_ingress_file(file_unique_id: str, cfg: Settings) -> dict:
     """Query file-ingress MySQL for ingress_files by file_unique_id."""
     conn = await aiomysql.connect(
-        host=settings.MYSQL_HOST,
-        port=settings.MYSQL_PORT,
-        user=settings.MYSQL_USER,
-        password=settings.MYSQL_PASSWORD,
-        db=settings.FI_MYSQL_DATABASE,
+        host=cfg.MYSQL_HOST,
+        port=cfg.MYSQL_PORT,
+        user=cfg.MYSQL_USER,
+        password=cfg.MYSQL_PASSWORD,
+        db=cfg.FI_MYSQL_DATABASE,
         charset="utf8mb4",
     )
     try:
